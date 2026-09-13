@@ -267,7 +267,7 @@ class StoryboardGenerator:
         self,
         ref_image: Image.Image,
         scene: Scene,
-        dino_threshold: float = 0.35,
+        dino_threshold: float = 0.54,
         max_retries: int = 2,
         scale_step: float = 0.10,
         num_inference_steps: int = 30,

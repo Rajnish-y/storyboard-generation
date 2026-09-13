@@ -16,9 +16,6 @@ For every scene, the experiment records:
     - retry count
     - generation time
     - initial/final conditioning scale
-
-This allows us to determine whether the proposed method actually improves
-the identity-vs-scene-compliance trade-off.
 """
 
 import csv
@@ -32,35 +29,29 @@ from storyboard_generator import (
     Scene,
     compute_adaptive_scale,
 )
+
 from identity_metrics import (
     identity_scores,
     clip_t_score,
 )
 
 
-# ---------------------------------------------------------------------------
+# -----------------------------------------------------------------------
 # Experimental baseline
-# ---------------------------------------------------------------------------
+# -----------------------------------------------------------------------
 
-# Current balanced fixed configuration from preliminary experiments.
 FIXED_SCALE = 0.5
 
 
-# ---------------------------------------------------------------------------
+# -----------------------------------------------------------------------
 # Method 1: Fixed baseline
-# ---------------------------------------------------------------------------
+# -----------------------------------------------------------------------
 
 def run_fixed(
     gen: StoryboardGenerator,
     ref_image: Image.Image,
     scene: Scene,
 ):
-    """
-    Fixed baseline:
-    Every scene uses exactly the same IP-Adapter scale.
-    No adaptive logic and no self-correction.
-    """
-
     trial_scene = Scene(
         scene_id=scene.scene_id,
         prompt=scene.prompt,
@@ -100,22 +91,15 @@ def run_fixed(
     return image, scores
 
 
-# ---------------------------------------------------------------------------
+# -----------------------------------------------------------------------
 # Method 2: Adaptive-only
-# ---------------------------------------------------------------------------
+# -----------------------------------------------------------------------
 
 def run_adaptive_only(
     gen: StoryboardGenerator,
     ref_image: Image.Image,
     scene: Scene,
 ):
-    """
-    Adaptive-only:
-    Compute the initial IP-Adapter scale from the scene using SACS.
-
-    No DINO feedback and no regeneration.
-    """
-
     adaptive_scale = compute_adaptive_scale(scene)
 
     trial_scene = Scene(
@@ -157,24 +141,15 @@ def run_adaptive_only(
     return image, scores
 
 
-# ---------------------------------------------------------------------------
+# -----------------------------------------------------------------------
 # Method 3: Proposed
-# ---------------------------------------------------------------------------
+# -----------------------------------------------------------------------
 
 def run_proposed(
     gen: StoryboardGenerator,
     ref_image: Image.Image,
     scene: Scene,
 ):
-    """
-    Proposed method:
-        1. Compute scene-adaptive initial scale.
-        2. Generate image.
-        3. Evaluate DINO consistency.
-        4. Increase reference conditioning if DINO is below threshold.
-        5. Regenerate up to the configured retry limit.
-    """
-
     t0 = time.time()
 
     image, scores = gen.generate_scene_with_self_correction(
@@ -186,7 +161,6 @@ def run_proposed(
 
     scores = dict(scores)
 
-    # CLIP-T is evaluated on the final accepted/best image.
     scores["clip_t"] = clip_t_score(
         scene.prompt,
         image,
@@ -200,21 +174,25 @@ def run_proposed(
     return image, scores
 
 
-# ---------------------------------------------------------------------------
+# -----------------------------------------------------------------------
 # Complete ablation experiment
-# ---------------------------------------------------------------------------
+# -----------------------------------------------------------------------
 
 def run_ablation(
-    scenes_json_path: str = "scenes.json",
-    out_csv: str = "ablation_results.csv",
+    scenes_json_path: str = "evaluation_scenes.json",
+    out_csv: str = "evaluation_results.csv",
+    gen: StoryboardGenerator = None,
 ):
     """
-    Run all three methods on all scenes and save results to CSV.
+    Run all three methods on all scenes.
+
+    If an existing generator is supplied, reuse it.
+    Otherwise create a new generator.
     """
 
-    # -----------------------------------------------------------------------
+    # -------------------------------------------------------------------
     # Load scenes
-    # -----------------------------------------------------------------------
+    # -------------------------------------------------------------------
 
     with open(
         scenes_json_path,
@@ -236,12 +214,8 @@ def run_ablation(
             prompt=scene_data["prompt"],
             negative_prompt=scene_data.get(
                 "negative_prompt",
-                Scene(
-                    scene_id="temp",
-                    prompt="temp",
-                ).negative_prompt,
+                "blurry, distorted face, extra limbs, low quality",
             ),
-            # This value is intentionally not used by the adaptive logic.
             ip_adapter_scale=scene_data.get(
                 "ip_adapter_scale",
                 0.5,
@@ -250,17 +224,18 @@ def run_ablation(
 
         scenes.append(scene)
 
-    # -----------------------------------------------------------------------
-    # Initialize generator once
-    # -----------------------------------------------------------------------
+    # -------------------------------------------------------------------
+    # Reuse existing generator or create one
+    # -------------------------------------------------------------------
 
-    gen = StoryboardGenerator()
+    if gen is None:
+        gen = StoryboardGenerator()
 
     rows = []
 
-    # -----------------------------------------------------------------------
-    # Run all methods
-    # -----------------------------------------------------------------------
+    # -------------------------------------------------------------------
+    # Methods
+    # -------------------------------------------------------------------
 
     methods = [
         ("fixed", run_fixed),
@@ -268,20 +243,27 @@ def run_ablation(
         ("proposed", run_proposed),
     ]
 
+    # -------------------------------------------------------------------
+    # Run experiment
+    # -------------------------------------------------------------------
+
     for scene in scenes:
 
-        # Print adaptive scale for transparency.
         adaptive_scale = compute_adaptive_scale(scene)
 
         print("\n" + "=" * 70)
         print(f"SCENE: {scene.scene_id}")
-        print(f"Adaptive initial scale: {adaptive_scale:.2f}")
+        print(
+            f"Adaptive initial scale: "
+            f"{adaptive_scale:.2f}"
+        )
         print("=" * 70)
 
         for method_name, method_fn in methods:
 
             print(
-                f"\n=== {scene.scene_id} | {method_name} ==="
+                f"\n=== {scene.scene_id} | "
+                f"{method_name} ==="
             )
 
             image, scores = method_fn(
@@ -290,7 +272,6 @@ def run_ablation(
                 scene,
             )
 
-            # Save every generated result separately.
             output_path = (
                 f"ablation_"
                 f"{scene.scene_id}_"
@@ -309,9 +290,9 @@ def run_ablation(
 
             print(row)
 
-    # -----------------------------------------------------------------------
+    # -------------------------------------------------------------------
     # Save CSV
-    # -----------------------------------------------------------------------
+    # -------------------------------------------------------------------
 
     if not rows:
         raise RuntimeError(
@@ -334,15 +315,16 @@ def run_ablation(
         writer.writerows(rows)
 
     print(
-        f"\nAblation results saved to: {out_csv}"
+        f"\nAblation results saved to: "
+        f"{out_csv}"
     )
 
     return rows
 
 
-# ---------------------------------------------------------------------------
+# -----------------------------------------------------------------------
 # Main
-# ---------------------------------------------------------------------------
+# -----------------------------------------------------------------------
 
 if __name__ == "__main__":
     run_ablation()

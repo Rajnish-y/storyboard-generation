@@ -1,0 +1,35 @@
+{
+    "character_ref_path": "character_ref.png",
+    "scenes": [
+        {
+            "scene_id": "cal_01",
+            "prompt": "character walking calmly through a quiet park at sunset",
+            "negative_prompt": "blurry, distorted face, extra limbs, low quality"
+        },
+        {
+            "scene_id": "cal_02",
+            "prompt": "character standing inside a busy train station",
+            "negative_prompt": "blurry, distorted face, extra limbs, low quality"
+        },
+        {
+            "scene_id": "cal_03",
+            "prompt": "character running quickly across a crowded street",
+            "negative_prompt": "blurry, distorted face, extra limbs, low quality"
+        },
+        {
+            "scene_id": "cal_04",
+            "prompt": "character jumping over an obstacle while escaping",
+            "negative_prompt": "blurry, distorted face, extra limbs, low quality"
+        },
+        {
+            "scene_id": "cal_05",
+            "prompt": "character sitting quietly beside a campfire at night",
+            "negative_prompt": "blurry, distorted face, extra limbs, low quality"
+        },
+        {
+            "scene_id": "cal_06",
+            "prompt": "character fighting an opponent in a dark alley",
+            "negative_prompt": "blurry, distorted face, extra limbs, low quality"
+        }
+    ]
+}

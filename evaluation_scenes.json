@@ -1,0 +1,55 @@
+{
+    "character_ref_path": "character_ref.png",
+    "scenes": [
+        {
+            "scene_id": "eval_01",
+            "prompt": "character standing calmly in a quiet library",
+            "negative_prompt": "blurry, distorted face, extra limbs, low quality"
+        },
+        {
+            "scene_id": "eval_02",
+            "prompt": "character walking through a crowded city market",
+            "negative_prompt": "blurry, distorted face, extra limbs, low quality"
+        },
+        {
+            "scene_id": "eval_03",
+            "prompt": "character running through a rain-soaked narrow alley",
+            "negative_prompt": "blurry, distorted face, extra limbs, low quality"
+        },
+        {
+            "scene_id": "eval_04",
+            "prompt": "character jumping over a fallen barrier while escaping",
+            "negative_prompt": "blurry, distorted face, extra limbs, low quality"
+        },
+        {
+            "scene_id": "eval_05",
+            "prompt": "character sitting beside a campfire at night",
+            "negative_prompt": "blurry, distorted face, extra limbs, low quality"
+        },
+        {
+            "scene_id": "eval_06",
+            "prompt": "character fighting an opponent in a dark alley",
+            "negative_prompt": "blurry, distorted face, extra limbs, low quality"
+        },
+        {
+            "scene_id": "eval_07",
+            "prompt": "character kneeling beside a wounded friend with visible grief",
+            "negative_prompt": "blurry, distorted face, extra limbs, low quality"
+        },
+        {
+            "scene_id": "eval_08",
+            "prompt": "character walking alone along a beach at sunset",
+            "negative_prompt": "blurry, distorted face, extra limbs, low quality"
+        },
+        {
+            "scene_id": "eval_09",
+            "prompt": "character climbing a steep mountain trail",
+            "negative_prompt": "blurry, distorted face, extra limbs, low quality"
+        },
+        {
+            "scene_id": "eval_10",
+            "prompt": "character standing confidently on a stage in front of a large audience",
+            "negative_prompt": "blurry, distorted face, extra limbs, low quality"
+        }
+    ]
+}
