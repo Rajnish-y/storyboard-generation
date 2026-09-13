@@ -1,0 +1,10 @@
+__pycache__/
+*.pyc
+.env
+character_ref.png
+storyboard_output/
+ablation_*.png
+*.safetensors
+*.bin
+*.csv
+storyboard_sheet.*
