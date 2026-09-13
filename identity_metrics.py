@@ -68,11 +68,29 @@ def identity_scores(reference: Image.Image, candidate: Image.Image) -> dict:
 
 
 @torch.no_grad()
+@torch.no_grad()
 def clip_text_embedding(text: str):
     model, processor = get_clip()
-    inputs = processor(text=[text], return_tensors="pt", padding=True, truncation=True).to(DEVICE)
+
+    inputs = processor(
+        text=[text],
+        return_tensors="pt",
+        padding=True,
+        truncation=True
+    ).to(DEVICE)
+
     feats = model.get_text_features(**inputs)
-    return feats
+
+    if torch.is_tensor(feats):
+        return feats
+
+    if hasattr(feats, "text_embeds") and feats.text_embeds is not None:
+        return feats.text_embeds
+
+    if hasattr(feats, "pooler_output"):
+        return feats.pooler_output
+
+    raise TypeError(f"Unexpected CLIP text output type: {type(feats)}")
 
 
 def clip_t_score(prompt: str, candidate: Image.Image) -> float:
