@@ -61,6 +61,41 @@ sys.modules["diffusers.image_processor"] = fake_image_processor
 from fastapi.testclient import TestClient
 from backend import app as app_module
 
+# Stub multi-character inference so the API can be tested without a GPU.
+multi_calls = []
+
+def fake_run_multi_character(
+    gen, reference_a, reference_b, prompt, scale, steps, guidance, seed
+):
+    image = Image.new("RGB", (96, 80), (40, 120, 180))
+    image_id, _ = app_module._save_image(image)
+
+    multi_calls.append({
+        "prompt": prompt,
+        "scale": scale,
+        "steps": steps,
+        "guidance": guidance,
+        "seed": seed,
+        "reference_a_size": reference_a.size,
+        "reference_b_size": reference_b.size,
+    })
+
+    return {
+        "image_url": f"/api/images/{image_id}",
+        "mode": "multi_character",
+        "reference_count": 2,
+        "placement": {"character_a": "left", "character_b": "right"},
+        "conditioning_scale": scale,
+        "steps": steps,
+        "guidance_scale": guidance,
+        "seed": seed,
+        "generation_seconds": 0.01,
+        "identity_metrics_available": False,
+        "note": "Stubbed test result.",
+    }
+
+app_module._run_multi_character = fake_run_multi_character
+
 with TestClient(app_module.app) as client:
     health = client.get("/api/health")
     assert health.status_code == 200, health.text
@@ -95,5 +130,64 @@ with TestClient(app_module.app) as client:
     assert storyboard["storyboard_sheet_url"], storyboard
     assert client.get(storyboard["storyboard_sheet_url"]).status_code == 200
     assert client.get(storyboard["storyboard_pdf_url"]).status_code == 200
+    # Multi-character endpoint: valid request with two distinct references.
+    character_a = Image.new("RGB", (96, 96), (220, 40, 60))
+    character_b = Image.new("RGB", (96, 96), (30, 180, 90))
+
+    buf_a = io.BytesIO()
+    buf_b = io.BytesIO()
+    character_a.save(buf_a, format="PNG")
+    character_b.save(buf_b, format="PNG")
+
+    multi_response = client.post(
+        "/api/generate-multi",
+        files={
+            "character_a": ("character_a.png", buf_a.getvalue(), "image/png"),
+            "character_b": ("character_b.png", buf_b.getvalue(), "image/png"),
+        },
+        data={
+            "prompt": "Two friends standing side by side at sunset.",
+            "scale": "0.75",
+            "steps": "10",
+            "guidance": "7.5",
+            "seed": "123",
+        },
+    )
+
+    assert multi_response.status_code == 200, multi_response.text
+    multi_result = multi_response.json()
+    assert multi_result["mode"] == "multi_character", multi_result
+    assert multi_result["reference_count"] == 2, multi_result
+    assert multi_result["placement"] == {
+        "character_a": "left",
+        "character_b": "right",
+    }, multi_result
+    assert multi_result["conditioning_scale"] == 0.75, multi_result
+    assert multi_result["steps"] == 10, multi_result
+    assert multi_result["guidance_scale"] == 7.5, multi_result
+    assert multi_result["seed"] == 123, multi_result
+    assert multi_result["identity_metrics_available"] is False, multi_result
+    assert client.get(multi_result["image_url"]).status_code == 200
+    assert len(multi_calls) == 1, multi_calls
+
+    # Identical reference images must be rejected.
+    duplicate_response = client.post(
+        "/api/generate-multi",
+        files={
+            "character_a": ("character_a.png", buf_a.getvalue(), "image/png"),
+            "character_b": ("character_b.png", buf_a.getvalue(), "image/png"),
+        },
+        data={
+            "prompt": "Two friends standing side by side.",
+            "scale": "0.75",
+            "steps": "10",
+            "guidance": "7.5",
+            "seed": "123",
+        },
+    )
+
+    assert duplicate_response.status_code == 400, duplicate_response.text
+    assert "distinct reference images" in duplicate_response.json()["detail"]
+    assert len(multi_calls) == 1, multi_calls
 
 print("API smoke test passed: health, proposed correction trace, image retrieval, storyboard contact sheet and PDF export.")
