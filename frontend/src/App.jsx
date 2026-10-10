@@ -198,10 +198,25 @@ function App() {
   useEffect(() => () => { if (characterAPreview) URL.revokeObjectURL(characterAPreview); }, [characterAPreview]);
   useEffect(() => () => { if (characterBPreview) URL.revokeObjectURL(characterBPreview); }, [characterBPreview]);
 
-  const authFetch = async (url, options = {}) => fetch(`${apiBaseNormalized}${url}`, {
-    ...options,
-    headers: { ...(options.headers || {}), ...headerObject },
-  });
+  const authFetch = async (url, options = {}) => {
+    try {
+      return await fetch(`${apiBaseNormalized}${url}`, {
+        ...options,
+        headers: { ...(options.headers || {}), ...headerObject },
+      });
+    } catch (err) {
+      const message = String(err?.message || '');
+
+      if (/failed to fetch|networkerror|load failed|network request failed/i.test(message)) {
+        throw new Error(
+          'Could not reach the StoryFrame backend. Check that the backend is running, ' +
+          'the API URL is correct, the Colab tunnel is active, and CORS allows this frontend.'
+        );
+      }
+
+      throw err;
+    }
+  };
 
   const handleReference = (file) => {
     if (!file) return;
@@ -601,7 +616,7 @@ function App() {
                 <div className="premise-box">
                   <label className="field-label" htmlFor="premise">Optional: create scenes from a story premise</label>
                   <textarea id="premise" rows={2} value={premise} onChange={(event) => setPremise(event.target.value)} placeholder="A one-sentence story premise…" />
-                  <div className="premise-actions"><label>Scenes <select value={sceneCount} onChange={(event) => setSceneCount(Number(event.target.value))}>{[2,3,4,5,6,8,10].map((n) => <option key={n} value={n}>{n}</option>)}</select></label><button type="button" className="button button-secondary button-small" onClick={handlePlan} disabled={planLoading || busy}>{planLoading ? <LoaderCircle className="spin" size={14} /> : <WandSparkles size={14} />} Draft with LLM</button></div>
+                  <div className="premise-actions"><label>Scenes <select value={sceneCount} onChange={(event) => setSceneCount(Number(event.target.value))}>{[2, 3, 4, 5, 6, 8, 10].map((n) => <option key={n} value={n}>{n}</option>)}</select></label><button type="button" className="button button-secondary button-small" onClick={handlePlan} disabled={planLoading || busy}>{planLoading ? <LoaderCircle className="spin" size={14} /> : <WandSparkles size={14} />} Draft with LLM</button></div>
                   <p className="optional-note">Requires ANTHROPIC_API_KEY on the backend. Manual prompts work without it.</p>
                 </div>
               </>}
@@ -627,8 +642,8 @@ function App() {
                 <div className="advanced-grid">
                   <label>DINO threshold <div className="range-value">{threshold.toFixed(2)}</div><input type="range" min="0.30" max="0.80" step="0.01" value={threshold} onChange={(event) => setThreshold(Number(event.target.value))} /><small>Calibration value used by the proposed method.</small></label>
                   <label>Max retries <select value={maxRetries} onChange={(event) => setMaxRetries(Number(event.target.value))}><option value={0}>0</option><option value={1}>1</option><option value={2}>2</option></select><small>Additional generations after the first attempt.</small></label>
-                  <label>Inference steps <select value={steps} onChange={(event) => setSteps(Number(event.target.value))}>{[20,25,30,35,40].map((n) => <option key={n} value={n}>{n}</option>)}</select></label>
-                  <label>Guidance scale <select value={guidance} onChange={(event) => setGuidance(Number(event.target.value))}>{[5,6,7,7.5,8,9].map((n) => <option key={n} value={n}>{n}</option>)}</select></label>
+                  <label>Inference steps <select value={steps} onChange={(event) => setSteps(Number(event.target.value))}>{[20, 25, 30, 35, 40].map((n) => <option key={n} value={n}>{n}</option>)}</select></label>
+                  <label>Guidance scale <select value={guidance} onChange={(event) => setGuidance(Number(event.target.value))}>{[5, 6, 7, 7.5, 8, 9].map((n) => <option key={n} value={n}>{n}</option>)}</select></label>
                   <label>Seed <input type="number" min="0" max="2147483647" value={seed} onChange={(event) => setSeed(Math.max(0, Number(event.target.value) || 0))} /></label>
                 </div>
               </details>}
