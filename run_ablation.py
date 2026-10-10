@@ -36,16 +36,15 @@ from identity_metrics import (
 )
 
 
-# -----------------------------------------------------------------------
+
 # Experimental baseline
-# -----------------------------------------------------------------------
 
 FIXED_SCALE = 0.5
 
 
-# -----------------------------------------------------------------------
+
 # Method 1: Fixed baseline
-# -----------------------------------------------------------------------
+
 
 def run_fixed(
     gen: StoryboardGenerator,
@@ -91,9 +90,8 @@ def run_fixed(
     return image, scores
 
 
-# -----------------------------------------------------------------------
 # Method 2: Adaptive-only
-# -----------------------------------------------------------------------
+
 
 def run_adaptive_only(
     gen: StoryboardGenerator,
@@ -141,9 +139,9 @@ def run_adaptive_only(
     return image, scores
 
 
-# -----------------------------------------------------------------------
+
 # Method 3: Proposed
-# -----------------------------------------------------------------------
+
 
 def run_proposed(
     gen: StoryboardGenerator,
@@ -174,9 +172,8 @@ def run_proposed(
     return image, scores
 
 
-# -----------------------------------------------------------------------
 # Complete ablation experiment
-# -----------------------------------------------------------------------
+
 
 def run_ablation(
     scenes_json_path: str = "evaluation_scenes.json",
@@ -190,9 +187,8 @@ def run_ablation(
     Otherwise create a new generator.
     """
 
-    # -------------------------------------------------------------------
     # Load scenes
-    # -------------------------------------------------------------------
+
 
     with open(
         scenes_json_path,
@@ -224,18 +220,17 @@ def run_ablation(
 
         scenes.append(scene)
 
-    # -------------------------------------------------------------------
     # Reuse existing generator or create one
-    # -------------------------------------------------------------------
+
 
     if gen is None:
         gen = StoryboardGenerator()
 
     rows = []
 
-    # -------------------------------------------------------------------
+
     # Methods
-    # -------------------------------------------------------------------
+
 
     methods = [
         ("fixed", run_fixed),
@@ -243,9 +238,9 @@ def run_ablation(
         ("proposed", run_proposed),
     ]
 
-    # -------------------------------------------------------------------
+
     # Run experiment
-    # -------------------------------------------------------------------
+
 
     for scene in scenes:
 
@@ -290,9 +285,9 @@ def run_ablation(
 
             print(row)
 
-    # -------------------------------------------------------------------
+
     # Save CSV
-    # -------------------------------------------------------------------
+
 
     if not rows:
         raise RuntimeError(
@@ -306,13 +301,26 @@ def run_ablation(
         encoding="utf-8",
     ) as f:
 
+        # Some methods emit attempt-trace metadata that other methods do not.
+        # Build a union of keys so DictWriter does not fail on extra fields.
+        fieldnames = list(dict.fromkeys(key for row in rows for key in row))
+        serializable_rows = []
+        for row in rows:
+            serializable = {}
+            for key, value in row.items():
+                if isinstance(value, (dict, list, tuple)):
+                    serializable[key] = json.dumps(value, ensure_ascii=False)
+                else:
+                    serializable[key] = value
+            serializable_rows.append(serializable)
+
         writer = csv.DictWriter(
             f,
-            fieldnames=rows[0].keys(),
+            fieldnames=fieldnames,
+            extrasaction="ignore",
         )
-
         writer.writeheader()
-        writer.writerows(rows)
+        writer.writerows(serializable_rows)
 
     print(
         f"\nAblation results saved to: "
@@ -322,9 +330,9 @@ def run_ablation(
     return rows
 
 
-# -----------------------------------------------------------------------
+
 # Main
-# -----------------------------------------------------------------------
+
 
 if __name__ == "__main__":
     run_ablation()

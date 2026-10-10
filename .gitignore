@@ -8,3 +8,20 @@ ablation_*.png
 *.bin
 *.csv
 storyboard_sheet.*
+# StoryFrame full-stack extension
+frontend/node_modules/
+frontend/dist/
+backend/__pycache__/
+generated_outputs/
+.env
+*.before_retry_fix.bak
+*.before_csv_fix.bak
+
+# Local frontend backups
+frontend-backup-*/
+
+# Local source backups
+backend/*_backup_*
+frontend/src/*_backup_*
+**/.env.*
+!**/.env.example

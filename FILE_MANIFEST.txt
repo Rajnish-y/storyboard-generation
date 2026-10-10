@@ -1,0 +1,9 @@
+Extension contents:
+- README.md: Windows + Colab runbook
+- backend/app.py: FastAPI API for single-scene and storyboard generation
+- backend/requirements-api.txt: API server dependencies
+- frontend/: React + Vite UI with CSS styling
+- .env.example: backend environment variable example
+- .gitignore.append: ignore rules to append to the project .gitignore
+- docs/SELF_CORRECTION_REPORTING_FIX.md: exact core-method reporting correction
+- docs/FINAL_REVIEW_CHECKLIST.md: final review checklist

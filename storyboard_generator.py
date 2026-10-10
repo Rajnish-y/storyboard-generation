@@ -31,9 +31,9 @@ from diffusers import StableDiffusionXLPipeline, AutoencoderKL
 from identity_metrics import identity_scores
 
 
-# ---------------------------------------------------------------------------
+
 # 1. Scene script format
-# ---------------------------------------------------------------------------
+
 
 @dataclass
 class Scene:
@@ -73,9 +73,7 @@ class Storyboard:
         )
 
 
-# ---------------------------------------------------------------------------
 # 2. Scene-Adaptive Conditioning
-# ---------------------------------------------------------------------------
 
 # These are INITIAL experimental values.
 # They should be validated through the ablation experiment.
@@ -185,9 +183,8 @@ def compute_adaptive_scale(scene: Scene) -> float:
     return NEUTRAL_SCALE
 
 
-# ---------------------------------------------------------------------------
 # 3. Pipeline wrapper: SDXL + IP-Adapter
-# ---------------------------------------------------------------------------
+
 
 class StoryboardGenerator:
 
@@ -222,10 +219,7 @@ class StoryboardGenerator:
             weight_name=ip_adapter_weight_name,
         )
 
-    # -----------------------------------------------------------------------
     # Basic generation
-    # -----------------------------------------------------------------------
-
     def generate_scene(
         self,
         ref_image: Image.Image,
@@ -259,9 +253,9 @@ class StoryboardGenerator:
 
         return result.images[0]
 
-    # -----------------------------------------------------------------------
+
     # Proposed method: Adaptive + DINO self-correction
-    # -----------------------------------------------------------------------
+
 
     def generate_scene_with_self_correction(
         self,
@@ -303,17 +297,17 @@ class StoryboardGenerator:
         # Do not depend on a manually entered scale from scenes.json.
         # Calculate the initial scale from the scene itself.
         initial_scale = compute_adaptive_scale(scene)
-
         current_scale = initial_scale
 
         best_image = None
+        best_attempt = 0
+        best_scale = initial_scale
+        attempts_run = 0
 
         best_scores = {
             "clip_i": -1.0,
             "dino": -1.0,
         }
-
-        best_attempt = 0
 
         scene_type = classify_scene_dynamics(scene)
 
@@ -340,44 +334,66 @@ class StoryboardGenerator:
                 seed=42 + attempt,
             )
 
+            attempts_run += 1
+
             scores = identity_scores(
                 ref_image,
-                image
+                image,
             )
 
             print(
                 f"  [{scene.scene_id}] "
-                f"attempt={attempt} "
+                f"attempt={attempt + 1} "
                 f"scale={current_scale:.2f} "
                 f"CLIP-I={scores['clip_i']:.4f} "
                 f"DINO={scores['dino']:.4f}"
             )
 
-            # Keep the best result even if none passes the threshold.
+            # Retain the image with the highest DINO score.
             if scores["dino"] > best_scores["dino"]:
                 best_image = image
                 best_scores = dict(scores)
                 best_attempt = attempt
+                best_scale = current_scale
 
-            # Accept immediately if identity consistency is sufficient.
+            # Stop when the current output satisfies the threshold.
             if scores["dino"] >= dino_threshold:
                 break
 
-            # Otherwise increase reference conditioning.
-            current_scale = min(
-                current_scale + scale_step,
-                1.0,
+            # Increase conditioning for the next attempt.
+            if attempt < max_retries:
+                current_scale = min(
+                    current_scale + scale_step,
+                    1.0,
+                )
+
+        if best_image is None:
+            raise RuntimeError(
+                f"No image was generated for scene {scene.scene_id}"
             )
 
-        best_scores["retries"] = best_attempt
+        # Record actual experiment metadata.
+        best_scores["retries"] = max(0, attempts_run - 1)
+        best_scores["attempts"] = attempts_run
+        best_scores["best_attempt"] = best_attempt + 1
         best_scores["initial_scale"] = initial_scale
-        best_scores["final_scale"] = current_scale
+        best_scores["final_scale"] = best_scale
+        best_scores["selected_scale"] = best_scale
+        best_scores["threshold_met"] = (
+            best_scores["dino"] >= dino_threshold
+        )
+
+        print(
+            f"[RESULT] selected_attempt={best_attempt + 1}, "
+            f"selected_scale={best_scale:.2f}, "
+            f"attempts={attempts_run}, "
+            f"retries={attempts_run - 1}, "
+            f"threshold_met={best_scores['threshold_met']}"
+        )
 
         return best_image, best_scores
-
-    # -----------------------------------------------------------------------
     # Full storyboard generation
-    # -----------------------------------------------------------------------
+
 
     def generate_storyboard(
         self,
@@ -451,9 +467,9 @@ class StoryboardGenerator:
         return output_paths
 
 
-# ---------------------------------------------------------------------------
+
 # 4. Example scene script
-# ---------------------------------------------------------------------------
+
 
 EXAMPLE_SCRIPT = {
     "character_ref_path": "character_ref.png",
@@ -503,9 +519,9 @@ EXAMPLE_SCRIPT = {
 }
 
 
-# ---------------------------------------------------------------------------
+
 # 5. Main
-# ---------------------------------------------------------------------------
+
 
 if __name__ == "__main__":
 
