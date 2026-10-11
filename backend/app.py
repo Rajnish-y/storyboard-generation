@@ -317,8 +317,8 @@ def _run_one(
 
 
 MULTI_CHARACTER_NEGATIVE_PROMPT = (
-    "merged faces, duplicate person, extra people, identity blending, "
-    "extra limbs, malformed hands, deformed face, blurry, low quality, text, watermark"
+    "merged faces, duplicate person, extra people, third person, crowd, group, "
+    "identity blending, extra limbs, malformed hands, deformed face, blurry, low quality, text, watermark"
 )
 
 
@@ -358,13 +358,13 @@ def _run_multi_character(
     # Keep the user's prompt concise; the suffix explicitly binds each reference
     # to a region, while masks provide the actual spatial conditioning.
     full_prompt = (
-        f"{prompt.strip()} Character A from the first reference is on the left; "
-        "Character B from the second reference is on the right. Both characters are distinct."
+        f"{prompt.strip()} Exactly two characters: A on the left; "
+        "B on the right. No other people."
     )
     _check_sdxl_prompt_length(gen, full_prompt)
 
-    left_edge = int(width * 0.535)
-    right_edge = int(width * 0.465)
+    left_edge = int(width * 0.50)
+    right_edge = int(width * 0.50)
     left_mask = Image.new("L", (width, height), 0)
     ImageDraw.Draw(left_mask).rectangle((0, 0, left_edge, height), fill=255)
     right_mask = Image.new("L", (width, height), 0)
