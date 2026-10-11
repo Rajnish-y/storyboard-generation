@@ -168,10 +168,17 @@ function App() {
         setStatusText(message);
       }
     } catch (err) {
+      const rawMessage = String(err?.message || '');
+      const isNetworkError =
+        /failed to fetch|networkerror|load failed|network request failed/i.test(rawMessage);
+
       const detail = err?.name === 'AbortError'
         ? 'The health check timed out after 25 seconds.'
-        : (err?.message || 'Unknown network error.');
-      const message = `Connection failed. Check the API URL, active Colab tunnel, and backend CORS settings. ${detail}`;
+        : isNetworkError
+          ? 'No response received. Check that the backend is running, the API URL is correct, the Colab tunnel is active, and CORS allows this frontend.'
+          : rawMessage || 'Unknown network error.';
+
+      const message = `Connection failed. ${detail}`;
       setHealth({ status: 'offline', model_loaded: false });
       setConnectionFeedback({ kind: 'error', message });
       setStatusText(message);
@@ -270,12 +277,28 @@ function App() {
     event?.preventDefault();
     setError('');
     setSingleResult(null);
-    if (!referenceFile) { setError('Upload a character reference image first.'); return; }
-    if (!prompt.trim()) { setError('Enter a scene prompt first.'); return; }
+
+    if (!referenceFile) {
+      setError('Upload a character reference image first.');
+      return;
+    }
+
+    if (!prompt.trim()) {
+      setError('Enter a scene prompt first.');
+      return;
+    }
+
     setBusy(true);
     setLastDuration(0);
+
     const started = performance.now();
-    setStatusText(mode === 'proposed' ? 'Generating, scoring, and correcting if needed…' : 'Generating scene and calculating metrics…');
+
+    setStatusText(
+      mode === 'proposed'
+        ? 'Generating, scoring, and correcting if needed…'
+        : 'Generating scene and calculating metrics…'
+    );
+
     try {
       const form = new FormData();
       form.append('reference_image', referenceFile);
@@ -286,11 +309,19 @@ function App() {
       form.append('steps', String(steps));
       form.append('guidance', String(guidance));
       form.append('seed', String(seed));
-      const response = await authFetch('/api/generate', { method: 'POST', body: form });
+
+      const response = await authFetch('/api/generate', {
+        method: 'POST',
+        body: form,
+      });
+
       const result = await parseResponse(response);
+
       setSingleResult(result);
       setLastDuration((performance.now() - started) / 1000);
-      setStatusText('Scene generated. Review the image, metrics, and attempt trace.');
+      setStatusText(
+        'Scene generated. Review the image, metrics, and attempt trace.'
+      );
     } catch (err) {
       setError(err.message || 'Generation failed.');
       setStatusText('Generation could not be completed.');
